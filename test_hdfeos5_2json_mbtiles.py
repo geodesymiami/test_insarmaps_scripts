@@ -345,6 +345,11 @@ def read_from_hdfeos5_file(file_name):
 
     return attributes, decimal_dates, timeseries_datasets, dates, folder_name, lats, lons, shm
 
+def read_from_csv_file(file_name):
+    # read data from csv file to be done by Emirhan
+    # the shared memory shm is confusing. it may also works without but be careful about returning or not returning shm.
+
+    return attributes, decimal_dates, timeseries_datasets, dates, folder_name, lats, lons, shm
 # ---------------------------------------------------------------------------------------
 # START OF EXECUTABLE
 # ---------------------------------------------------------------------------------------
