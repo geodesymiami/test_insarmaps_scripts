@@ -374,8 +374,7 @@ def main():
     elif file_path.suffix.lower() == ".csv":
         attributes, decimal_dates, timeseries_datasets, dates, folder_name, lats, lons = read_from_csv_file(file_name)
     else:
-        raise
-   
+        raise FileNotFoundError(f"The file '{file_path}' does not exist or has not .he5 or .csv as extension.")   
 
     # read and convert the datasets, then write them into json files and insert into database
     convert_data(attributes, decimal_dates, timeseries_datasets, dates, output_folder, folder_name, lats, lons, parseArgs.num_workers)
