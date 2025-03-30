@@ -294,9 +294,6 @@ def build_parser():
 
     return parser
 
-# ---------------------------------------------------------------------------------------
-# START OF EXECUTABLE
-# ---------------------------------------------------------------------------------------
 def read_from_hdfeos5_file(file_name):
     # read data from hdfeos5 file
     should_mask = True
@@ -348,6 +345,9 @@ def read_from_hdfeos5_file(file_name):
 
     return attributes, decimal_dates, timeseries_datasets, dates, folder_name, lats, lons, shm
 
+# ---------------------------------------------------------------------------------------
+# START OF EXECUTABLE
+# ---------------------------------------------------------------------------------------
 def main():
     parser = build_parser()
     parseArgs = parser.parse_args()
@@ -376,7 +376,7 @@ def main():
     convert_data(attributes, decimal_dates, timeseries_datasets, dates, output_folder, folder_name, lats, lons, parseArgs.num_workers)
     del lats
     del lons
-    shm.close()
+    shm.close()     # FA 3/2025:  not sure why this is needed but it avoided segementation fault error
     shm.unlink()
     
     # run tippecanoe command to get mbtiles file
