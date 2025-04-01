@@ -27,6 +27,9 @@ from multiprocessing import shared_memory
 from multiprocessing import Pool
 from multiprocessing import Value
 
+import pandas as pd
+from datetime import datetime
+
 chunk_num = Value("i", 0)
 # ex: python Converter_unavco.py Alos_SM_73_2980_2990_20070107_20110420.h5
 
@@ -349,7 +352,67 @@ def read_from_csv_file(file_name):
     # read data from csv file to be done by Emirhan
     # the shared memory shm is confusing. it may also works without but be careful about returning or not returning shm.
 
-    return attributes, decimal_dates, timeseries_datasets, dates, folder_name, lats, lons, shm
+    def read_from_csv_file(file_name):
+    # read data from csv file to be done by Emirhan
+    # the shared memory shm is confusing. it may also works without but be careful about returning or not returning shm.
+
+    df = pd.read_csv(file_name)
+
+    #extract values
+    lats = df["Latitude"].values
+    lons = df["Longitude"].values
+    vel_v = df["VEL_V"].values
+    v_stdev = df["V_STDEV_V"].values
+
+    #date columns
+    time_cols = [col for col in df.columns if col.isdigit()]
+    time_cols.sort()
+
+    #3D time-series array (time, y, x)
+    num_points = len(df)
+    num_dates = len(time_cols)
+    timeseries_data = df[time_cols].values
+
+    #convert 2D slices for each date
+    num_rows = int(np.sqrt(num_points))
+    num_cols = int(np.ceil(num_points / num_rows))
+    padded = np.full((num_cols * num_rows, num_dates), np.nan)
+    padded[:num_points, :] = timeseries_data
+
+    reshaped = padded.reshape((num_rows, num_cols, num_dates)).transpose(2, 0, 1)
+
+    #dates
+    dates = time_cols
+    decimal_dates = [get_decimal_date(get_date(d)) for d in dates]
+    timeseries_datasets = {d: reshaped[i, :, :] for i, d in enumerate(dates)}
+
+    #required metadata
+    attributes = {
+        "PROJECT_NAME": "CSV_IMPORT",
+        "WIDTH": str(num_cols),
+        "LENGTH": str(num_rows),
+        "X_STEP": "1.0",
+        "Y_STEP": "1.0",
+        "X_FIRST": str(min(lons)),
+        "Y_FIRST": str(min(lats)),
+    }
+
+    #reshape lat/lons
+    padded_lats = np.full(num_cols * num_rows, np.nan)
+    padded_lats[:num_points] = lats
+    lats_grid = padded_lats.reshape((num_rows, num_cols))
+
+    padded_lons = np.full(num_cols * num_rows, np.nan)
+    padded_lons[:num_points] = lons
+    lons_grid = padded_lons.reshape((num_rows, num_cols))
+
+    folder_name = os.path.basename(file_name).split(".")[0]
+
+    #none shared memory object
+    shm = None
+
+    return attributes, decimal_dates, timeseries_datasets, dates, folder_name, lats_grid, lons_grid, shm
+
 # ---------------------------------------------------------------------------------------
 # START OF EXECUTABLE
 # ---------------------------------------------------------------------------------------
@@ -380,8 +443,11 @@ def main():
     convert_data(attributes, decimal_dates, timeseries_datasets, dates, output_folder, folder_name, lats, lons, parseArgs.num_workers)
     del lats
     del lons
-    shm.close()     # FA 3/2025:  not sure why this is needed but it avoided segementation fault error
-    shm.unlink()
+    if shm is not None:
+        shm.close()
+        shm.unlink()
+    #shm.close()     # FA 3/2025:  not sure why this is needed but it avoided segementation fault error
+    #shm.unlink()
     
     # run tippecanoe command to get mbtiles file
     os.chdir(os.path.abspath(output_folder))
