@@ -203,15 +203,19 @@ def convert_data(attributes, decimal_dates, timeseries_datasets, dates, json_pat
     insarmapsMetadata = {}
     # calculate mid lat and long of dataset - then use google python lib to get country
     # technically don't need the else since we always use lats and lons arrays now
-    if high_res_mode(attributes):
-        num_rows, num_columns = lats.shape
-        mid_long = float(lons[num_rows // 2][num_columns // 2])
-        mid_lat = float(lats[num_rows // 2][num_columns // 2])
-    else:
-        mid_long = x_first + ((num_columns/2) * x_step)
-        mid_lat = y_first + ((num_rows/2) * y_step)
+    
+    #below part removed for now ,csv
+    #if high_res_mode(attributes):
+    #    num_rows, num_columns = lats.shape
+    #    mid_long = float(lons[num_rows // 2][num_columns // 2])
+    #    mid_lat = float(lats[num_rows // 2][num_columns // 2])
+    #else:
+    #    mid_long = x_first + ((num_columns/2) * x_step)
+    #    mid_lat = y_first + ((num_rows/2) * y_step)
+    mid_lat = float(np.nanmean(lats))
+    mid_long = float(np.nanmean(lons))
 
-    country = None
+    country = "None"
     try:
         g = geocoder.google([mid_lat,mid_long], method='reverse', timeout=60.0)
         country = str(g.country_long)
@@ -352,10 +356,6 @@ def read_from_csv_file(file_name):
     # read data from csv file to be done by Emirhan
     # the shared memory shm is confusing. it may also works without but be careful about returning or not returning shm.
 
-    def read_from_csv_file(file_name):
-    # read data from csv file to be done by Emirhan
-    # the shared memory shm is confusing. it may also works without but be careful about returning or not returning shm.
-
     df = pd.read_csv(file_name)
 
     #extract values
@@ -408,11 +408,18 @@ def read_from_csv_file(file_name):
 
     folder_name = os.path.basename(file_name).split(".")[0]
 
-    #none shared memory object
+    #shm none
     shm = None
 
-    return attributes, decimal_dates, timeseries_datasets, dates, folder_name, lats_grid, lons_grid, shm
+    print(" Check: read_from_csv_file output")
+    print(" - timeseries_datasets keys:", list(timeseries_datasets.keys())[:3], "...")
+    print(" - sample slice shape:", timeseries_datasets[dates[0]].shape)
+    print(" - lat_grid shape:", lats_grid.shape)
+    print(" - lon_grid shape:", lons_grid.shape)
+    print(" - Number of dates:", len(dates))
+    print(" - Attributes:", attributes)
 
+    return attributes, decimal_dates, timeseries_datasets, dates, folder_name, lats_grid, lons_grid, shm
 # ---------------------------------------------------------------------------------------
 # START OF EXECUTABLE
 # ---------------------------------------------------------------------------------------
@@ -435,7 +442,7 @@ def main():
     if file_path.suffix.lower() == ".he5":
         attributes, decimal_dates, timeseries_datasets, dates, folder_name, lats, lons, shm = read_from_hdfeos5_file(file_name)
     elif file_path.suffix.lower() == ".csv":
-        attributes, decimal_dates, timeseries_datasets, dates, folder_name, lats, lons = read_from_csv_file(file_name)
+        attributes, decimal_dates, timeseries_datasets, dates, folder_name, lats, lons, shm = read_from_csv_file(file_name)
     else:
         raise FileNotFoundError(f"The file '{file_path}' does not exist or has not .he5 or .csv as extension.")   
 
@@ -446,9 +453,7 @@ def main():
     if shm is not None:
         shm.close()
         shm.unlink()
-    #shm.close()     # FA 3/2025:  not sure why this is needed but it avoided segementation fault error
-    #shm.unlink()
-    
+
     # run tippecanoe command to get mbtiles file
     os.chdir(os.path.abspath(output_folder))
     cmd = None
@@ -468,4 +473,3 @@ def main():
 # ---------------------------------------------------------------------------------------
 if __name__ == '__main__':
     main()
-# Test push access
