@@ -301,6 +301,67 @@ def build_parser():
 
     return parser
 
+def add_dummy_attribute(attributes):
+  # add needed attributes to attributes dictionary
+    keys = 'CENTER_LINE_UTC,REF_LAT,REF_LON,atmos_correct_method,beam_mode,beam_swath,data_footprint,first_date,first_frame,flight_direction,history,last_date,last_frame,look_direction,mission,post_processing_method,prf,processing_software,processing_type,relative_orbit,scene_footprint,wavelength'
+    raw_values = '{42609.0,-0.83355445,-91.12596,None,IW,1,POLYGON((-91.19760131835938 -0.7949774265289307,-91.11847686767578 -0.7949774265289307,-91.11847686767578 -0.8754903078079224,-91.19760131835938 -0.8754903078079224,-91.19760131835938 -0.7949774265289307)),2016-06-05,596,D,2025-02-25,2016-08-28,597,R,S1,MintPy,1717.128973878037,isce,LOS_TIMESERIES,128,POLYGON((-90.79583946164999 -0.687890034792316,-90.86911230465793 -1.0359825079903804,-91.62407871076888 -0.8729106902243329,-91.55064943686261 -0.5251520401739668,-90.79583946164999 -0.687890034792316)),0.05546576}'
+    value_list = raw_values.strip('{}').split(',')
+    key_list = keys.split(',')
+    combined_values = []
+    i = 0
+    while i < len(value_list):
+        val = value_list[i]
+        if val.startswith('POLYGON(('):
+            polygon = val
+            i += 1
+            while not value_list[i].endswith('))'):
+                polygon += ',' + value_list[i]
+                i += 1
+            polygon += ',' + value_list[i]  # add the last one
+            combined_values.append(polygon)
+        else:
+            combined_values.append(val)
+        i += 1
+
+    # Sanity check
+    if len(combined_values) != len(key_list):
+        raise ValueError(f"Mismatch between keys ({len(key_list)}) and values ({len(combined_values)})")
+
+    # Add to attributes dictionary
+    for key, val in zip(key_list, combined_values):
+        attributes[key] = val if val != 'None' else None
+    
+    return attributes
+
+def add_data_footprint_attribute(attributes, lats, lons):
+    """
+    Adds a 'data_footprint' attribute to the attributes dictionary based on min/max of lat/lon arrays.
+
+    Parameters:
+        attributes (dict): Dictionary to update.
+        lats (2D array): Latitude values.
+        lons (2D array): Longitude values.
+    """
+    min_lat = float(np.min(lats))
+    max_lat = float(np.max(lats))
+    min_lon = float(np.min(lons))
+    max_lon = float(np.max(lons))
+
+    # Counter-clockwise starting from lower-right
+    polygon = (
+        f"POLYGON(({max_lon} {min_lat},"
+        f"{min_lon} {min_lat},"
+        f"{min_lon} {max_lat},"
+        f"{max_lon} {max_lat},"
+        f"{max_lon} {min_lat}))"
+    )
+    print("data_footprint: ", polygon)
+   
+    attributes['data_footprint'] = polygon
+    
+    return attributes
+
+
 def read_from_hdfeos5_file(file_name):
     # read data from hdfeos5 file
     should_mask = True
@@ -392,34 +453,8 @@ def read_from_csv_file(file_name):
         "LENGTH": str(num_rows),
     }
 
-    # add needed attributes to attributes dictionary
-    keys = 'CENTER_LINE_UTC,REF_LAT,REF_LON,atmos_correct_method,beam_mode,beam_swath,data_footprint,first_date,first_frame,flight_direction,history,last_date,last_frame,look_direction,mission,post_processing_method,prf,processing_software,processing_type,relative_orbit,scene_footprint,wavelength'
-    raw_values = '{42609.0,-0.83355445,-91.12596,None,IW,1,POLYGON((-91.19760131835938 -0.7949774265289307,-91.11847686767578 -0.7949774265289307,-91.11847686767578 -0.8754903078079224,-91.19760131835938 -0.8754903078079224,-91.19760131835938 -0.7949774265289307)),2016-06-05,596,D,2025-02-25,2016-08-28,597,R,S1,MintPy,1717.128973878037,isce,LOS_TIMESERIES,128,POLYGON((-90.79583946164999 -0.687890034792316,-90.86911230465793 -1.0359825079903804,-91.62407871076888 -0.8729106902243329,-91.55064943686261 -0.5251520401739668,-90.79583946164999 -0.687890034792316)),0.05546576}'
-    value_list = raw_values.strip('{}').split(',')
-    key_list = keys.split(',')
-    combined_values = []
-    i = 0
-    while i < len(value_list):
-        val = value_list[i]
-        if val.startswith('POLYGON(('):
-            polygon = val
-            i += 1
-            while not value_list[i].endswith('))'):
-                polygon += ',' + value_list[i]
-                i += 1
-            polygon += ',' + value_list[i]  # add the last one
-            combined_values.append(polygon)
-        else:
-            combined_values.append(val)
-        i += 1
-
-    # Sanity check
-    if len(combined_values) != len(key_list):
-        raise ValueError(f"Mismatch between keys ({len(key_list)}) and values ({len(combined_values)})")
-
-    # Add to attributes dictionary
-    for key, val in zip(key_list, combined_values):
-        attributes[key] = val if val != 'None' else None
+    attributes = add_dummy_attribute(attributes)
+    attributes = add_data_footprint_attribute(attributes, lats, lons)
 
     padded_lats = np.full(num_cols * num_rows, np.nan)
     padded_lats[:num_points] = lats
