@@ -17,5 +17,5 @@ The below install instructions have been tested on ubuntu 22.04. Installing on W
 
 Download the test data;
 
-wget http://149.165.154.65/data/HDF5EOS/epehlivanli/test_csv/sarvey_test.csv
-wget http://149.165.154.65/data/HDF5EOS/epehlivanli/test_csv/North_20162023.csv
+```wget http://149.165.154.65/data/HDF5EOS/epehlivanli/test_csv/sarvey_test.csv```
+```wget http://149.165.154.65/data/HDF5EOS/epehlivanli/test_csv/North_20162023.csv```
