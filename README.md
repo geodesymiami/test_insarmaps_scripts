@@ -35,10 +35,3 @@ json_mbtiles2insarmaps.py --num-workers 3 -u insaradmin -p insaradmin --host 149
 
 http://149.165.153.50/start/25.9479/-80.1186/15.0522?flyToDatasetCenter=true&startDataset=North_20162023
 ```
-
-**NOTE!**
-Before re-testing the same data;
-```
-insarmapsremove sarvey_test
-insarmapsremove North_20162023
-```
