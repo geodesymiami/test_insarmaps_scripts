@@ -13,7 +13,7 @@ The below install instructions have been tested on ubuntu 22.04. Installing on W
 5. Run `pip install -r requirements.txt` to install remaining requirements
 
 ## Csv usage
-### NOAA TRE and SARvey Displacement Test Dataset
+### Displacement Test Datasets
 
 - Download the first test data;
 
