@@ -15,11 +15,14 @@ The below install instructions have been tested on ubuntu 22.04. Installing on W
 ## Csv usage
 ### NOAA TRE Displacement Test Dataset
 
-Download the test data;
+Download the first test data;
 
 1. `wget http://149.165.154.65/data/HDF5EOS/epehlivanli/test_csv/sarvey_test.csv`
+2. Run `test_hdfeos5_2json_mbtiles.py ./test_csv/sarvey_test.csv ./test_csv/JSON_1` (Note: `./test_csv/JSON_1` is output directory which is created automatically, you don't need to create it)
+3. Run `json_mbtiles2insarmaps.py --num-workers 3 -u insaradmin -p insaradmin --host 149.165.153.50 -P insarmaps -U insarmaps@insarmaps.com --json_folder ./test_csv/JSON_1 --mbtiles_file ./test_csv/OutDir/sarvey_test.mbtiles`
 
-   or,
-3. `wget http://149.165.154.65/data/HDF5EOS/epehlivanli/test_csv/North_20162023.csv`
-4. Run `test_hdfeos5_2json_mbtiles.py ./test_csv/North_20162023 ./test_csv/OutDir`
-5. Run `json_mbtiles2insarmaps.py --num-workers 3 -u insaradmin -p insaradmin --host 149.165.153.50 -P insarmaps -U insarmaps@insarmaps.com --json_folder ./test_csv/OutDir --mbtiles_file ./test_csv/OutDir/North_20162023.mbtiles`
+Download the second test data;
+
+1. `wget http://149.165.154.65/data/HDF5EOS/epehlivanli/test_csv/North_20162023.csv`
+2. Run `test_hdfeos5_2json_mbtiles.py ./test_csv/North_20162023 ./test_csv/JSON_2` (Note: `./test_csv/JSON_2` is output directory which is created automatically, you don't need to create it) 
+3. Run `json_mbtiles2insarmaps.py --num-workers 3 -u insaradmin -p insaradmin --host 149.165.153.50 -P insarmaps -U insarmaps@insarmaps.com --json_folder ./test_csv/JSON_2 --mbtiles_file ./test_csv/OutDir/North_20162023.mbtiles`
