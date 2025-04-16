@@ -15,14 +15,30 @@ The below install instructions have been tested on ubuntu 22.04. Installing on W
 ## Csv usage
 ### NOAA TRE Displacement Test Dataset
 
-Download the first test data;
+- Download the first test data;
 
-1. `wget http://149.165.154.65/data/HDF5EOS/epehlivanli/test_csv/sarvey_test.csv`
-2. Run `test_hdfeos5_2json_mbtiles.py ./test_csv/sarvey_test.csv ./test_csv/JSON_1` (Note: `./test_csv/JSON_1` is output directory which is created automatically, you don't need to create it)
-3. Run `json_mbtiles2insarmaps.py --num-workers 3 -u insaradmin -p insaradmin --host 149.165.153.50 -P insarmaps -U insarmaps@insarmaps.com --json_folder ./test_csv/JSON_1 --mbtiles_file ./test_csv/OutDir/sarvey_test.mbtiles`
+```
+wget http://149.165.154.65/data/HDF5EOS/epehlivanli/test_csv/sarvey_test.csv
+test_hdfeos5_2json_mbtiles.py sarvey_test.csv ./JSON_1
+json_mbtiles2insarmaps.py --num-workers 3 -u insaradmin -p insaradmin --host 149.165.153.50 -P insarmaps -U insarmaps@insarmaps.com --json_folder ./JSON_1 --mbtiles_file ./JSON_1/sarvey_test.mbtiles
 
-Download the second test data;
+http://149.165.153.50/start/32.0269/49.3980/13.7305?flyToDatasetCenter=true&startDataset=sarvey_test
+```
+**OR,**
 
-1. `wget http://149.165.154.65/data/HDF5EOS/epehlivanli/test_csv/North_20162023.csv`
-2. Run `test_hdfeos5_2json_mbtiles.py ./test_csv/North_20162023 ./test_csv/JSON_2` (Note: `./test_csv/JSON_2` is output directory which is created automatically, you don't need to create it) 
-3. Run `json_mbtiles2insarmaps.py --num-workers 3 -u insaradmin -p insaradmin --host 149.165.153.50 -P insarmaps -U insarmaps@insarmaps.com --json_folder ./test_csv/JSON_2 --mbtiles_file ./test_csv/OutDir/North_20162023.mbtiles`
+- Download the second test data;
+
+```
+wget http://149.165.154.65/data/HDF5EOS/epehlivanli/test_csv/North_20162023.csv
+test_hdfeos5_2json_mbtiles.py North_20162023 ./JSON_2
+json_mbtiles2insarmaps.py --num-workers 3 -u insaradmin -p insaradmin --host 149.165.153.50 -P insarmaps -U insarmaps@insarmaps.com --json_folder ./JSON_2 --mbtiles_file ./JSON_2/North_20162023.mbtiles
+
+http://149.165.153.50/start/25.9479/-80.1186/15.0522?flyToDatasetCenter=true&startDataset=North_20162023
+```
+
+**NOTE!**
+Before re-testing the same data;
+```
+insarmapsremove sarvey_test
+insarmapsremove North_20162023
+```
