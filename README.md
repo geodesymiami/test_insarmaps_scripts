@@ -17,5 +17,8 @@ The below install instructions have been tested on ubuntu 22.04. Installing on W
 
 Download the test data;
 
-1. ```wget http://149.165.154.65/data/HDF5EOS/epehlivanli/test_csv/sarvey_test.csv```
-2. ```wget http://149.165.154.65/data/HDF5EOS/epehlivanli/test_csv/North_20162023.csv```
+1. `wget http://149.165.154.65/data/HDF5EOS/epehlivanli/test_csv/sarvey_test.csv`
+   or
+2. `wget http://149.165.154.65/data/HDF5EOS/epehlivanli/test_csv/North_20162023.csv`
+3. Run `test_hdfeos5_2json_mbtiles.py ./test_csv/North_20162023 ./test_csv/OutDir`
+4. Run `json_mbtiles2insarmaps.py --num-workers 3 -u insaradmin -p insaradmin --host 149.165.153.50 -P insarmaps -U insarmaps@insarmaps.com --json_folder ./test_csv/OutDir --mbtiles_file ./test_csv/OutDir/North_20162023.mbtiles`
