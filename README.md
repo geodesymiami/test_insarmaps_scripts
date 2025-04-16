@@ -17,6 +17,5 @@ The below install instructions have been tested on ubuntu 22.04. Installing on W
 
 Download the test data;
 
-1. [NOAA_SNT_A_VERT_10_50m.csv.zip (Google Drive)](https://drive.google.com/file/d/1nDDipdA1ynTDRhbXpAWLSgdaHTtTOd5Z/view?usp=share_link)
-2. ```unzip NOAA_SNT_A_VERT_10_50m.csv.zip```
-3. ```test_hdfeos5_2json_mbtiles.py input_dir/NOAA_SNT_A_VERT_10_50m.csv ./output_dir```
+wget http://149.165.154.65/data/HDF5EOS/epehlivanli/test_csv/sarvey_test.csv
+wget http://149.165.154.65/data/HDF5EOS/epehlivanli/test_csv/North_20162023.csv
