@@ -29,6 +29,7 @@ from multiprocessing import Value
 
 import pandas as pd
 from datetime import datetime
+from shapely.geometry import MultiPoint
 
 chunk_num = Value("i", 0)
 # ex: python Converter_unavco.py Alos_SM_73_2980_2990_20070107_20110420.h5
@@ -145,19 +146,23 @@ def create_json(decimal_dates, timeseries_datasets, dates, json_path, folder_nam
             # y = mx + c -> we want m = slope of the linear regression line 
             m, c = np.linalg.lstsq(A, y, rcond=None)[0]
 
-            elevation = None
+            # Base properties for all inputs
+            properties = {
+                "d": displacement_values,
+                "m": m,
+                "p": point_num
+            }
+
+            # add additional attr only if point_attributes is provided (csv)
             if point_attributes and point_num < len(point_attributes):
-                elevation = point_attributes[point_num].get("dem")
+                for k, v in point_attributes[point_num].items():
+                    if v is not None:
+                        properties[k] = v
 
             data = {
                 "type": "Feature",
                 "geometry": {"type": "Point", "coordinates": [longitude, latitude]},
-                "properties": {
-                    "d": displacement_values,
-                    "m": m,
-                    "p": point_num,
-                    "dem": elevation #elevation from csv
-                }
+                "properties": properties
             }
 
             siu_man.append(data)
@@ -315,7 +320,8 @@ def build_parser():
     return parser
 
 def add_dummy_attribute(attributes):
-  # add needed attributes to attributes dictionary
+    # add needed attributes to attributes dictionary
+    # Note: Some of these will be overwritten below if csv metadata is available
     keys = 'CENTER_LINE_UTC,REF_LAT,REF_LON,atmos_correct_method,beam_mode,beam_swath,data_footprint,first_date,first_frame,flight_direction,history,last_date,last_frame,look_direction,mission,post_processing_method,prf,processing_software,processing_type,relative_orbit,scene_footprint,wavelength'
     raw_values = '{42609.0,-0.83355445,-91.12596,None,IW,1,POLYGON((-91.19760131835938 -0.7949774265289307,-91.11847686767578 -0.7949774265289307,-91.11847686767578 -0.8754903078079224,-91.19760131835938 -0.8754903078079224,-91.19760131835938 -0.7949774265289307)),2016-06-05,596,D,2025-02-25,2016-08-28,597,R,S1,MintPy,1717.128973878037,isce,LOS_TIMESERIES,128,POLYGON((-90.79583946164999 -0.687890034792316,-90.86911230465793 -1.0359825079903804,-91.62407871076888 -0.8729106902243329,-91.55064943686261 -0.5251520401739668,-90.79583946164999 -0.687890034792316)),0.05546576}'
     value_list = raw_values.strip('{}').split(',')
@@ -344,6 +350,18 @@ def add_dummy_attribute(attributes):
     for key, val in zip(key_list, combined_values):
         attributes[key] = val if val != 'None' else None
     
+    # for csv
+    if all(key in attributes for key in ["LAT_ARRAY", "LON_ARRAY", "DATE_COLUMNS"]):
+        lats = attributes.pop("LAT_ARRAY")
+        lons = attributes.pop("LON_ARRAY")
+        date_columns = attributes.pop("DATE_COLUMNS")
+
+        attributes["REF_LAT"] = float(np.nanmean(lats))
+        attributes["REF_LON"] = float(np.nanmean(lons))
+        sorted_dates = sorted(date_columns)
+        attributes["first_date"] = sorted_dates[0]
+        attributes["last_date"] = sorted_dates[-1]
+
     return attributes
 
 def add_data_footprint_attribute(attributes, lats, lons):
@@ -371,7 +389,8 @@ def add_data_footprint_attribute(attributes, lats, lons):
     print("data_footprint: ", polygon)
    
     attributes['data_footprint'] = polygon
-    
+    attributes["scene_footprint"] = polygon
+
     return attributes
 
 
@@ -445,21 +464,19 @@ def read_from_csv_file(file_name):
     lats = df[lat_col].values
     lons = df[lon_col].values
 
-    # time series columns
-    time_cols = [col for col in df.columns if col.isdigit()]
-    is_noaa_format = bool(time_cols)
+    # extract time-series data
+    sarvey_time_cols = [col for col in df.columns if col.startswith("D") and col[1:].isdigit()]
+    is_sarvey_format = bool(sarvey_time_cols)
 
-    if not is_noaa_format:
-        time_cols = [col for col in df.columns if col.startswith("D") and col[1:].isdigit()]
+    if is_sarvey_format:
+        time_cols = sarvey_time_cols
         time_cols.sort()
-
-    # extract time series data
-    if is_noaa_format:
-        timeseries_data = df[time_cols].values / 1000  # NOAA-TRE
-        dates = time_cols
+        timeseries_data = df[time_cols].values / 1000  # SARvey
+        dates = [col[1:] for col in time_cols]  # remove "D" prefix
     else:
-        timeseries_data = df[time_cols].values /1000   # SARvey:
-        dates = [col[1:] for col in time_cols]         # remove "D" prefix
+        time_cols = [col for col in df.columns if col.isdigit()]
+        timeseries_data = df[time_cols].values / 1000  # e.g. NOAA-TRE
+        dates = time_cols
 
     # 3D time-series array (time, y, x)
     num_points = len(df)
@@ -481,6 +498,11 @@ def read_from_csv_file(file_name):
         "WIDTH": str(num_cols),
         "LENGTH": str(num_rows),
     }
+
+    # real lat/lon/dates to use in dummy attribute overwrite
+    attributes["LAT_ARRAY"] = lats
+    attributes["LON_ARRAY"] = lons
+    attributes["DATE_COLUMNS"] = dates
 
     attributes = add_dummy_attribute(attributes)
     attributes = add_data_footprint_attribute(attributes, lats, lons)
