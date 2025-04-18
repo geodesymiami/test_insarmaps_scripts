@@ -63,7 +63,7 @@ def region_name_from_project_name(project_name):
 needed_attributes = {
     "prf", "first_date", "mission", "WIDTH", "X_STEP", "processing_software",
     "wavelength", "processing_type", "beam_swath", "Y_FIRST", "look_direction",
-    "flight_direction", "last_frame", "post_processing_method", "min_baseline_perp"
+    "flight_direction", "last_frame", "post_processing_method", "min_baseline_perp",
     "unwrap_method", "relative_orbit", "beam_mode", "LENGTH", "max_baseline_perp",
     "X_FIRST", "atmos_correct_method", "last_date", "first_frame", "frame", "Y_STEP", "history",
     "scene_footprint", "data_footprint", "downloadUnavcoUrl", "referencePdfUrl", "areaName", "referenceText",
@@ -319,11 +319,17 @@ def build_parser():
 
     return parser
 
-def add_dummy_attribute(attributes):
+def add_dummy_attribute(attributes, is_sarvey_format):
     # add needed attributes to attributes dictionary
     # Note: Some of these will be overwritten below if csv metadata is available
-    keys = 'CENTER_LINE_UTC,REF_LAT,REF_LON,atmos_correct_method,beam_mode,beam_swath,data_footprint,first_date,first_frame,flight_direction,history,last_date,last_frame,look_direction,mission,post_processing_method,prf,processing_software,processing_type,relative_orbit,scene_footprint,wavelength'
-    raw_values = '{42609.0,-0.83355445,-91.12596,None,IW,1,POLYGON((-91.19760131835938 -0.7949774265289307,-91.11847686767578 -0.7949774265289307,-91.11847686767578 -0.8754903078079224,-91.19760131835938 -0.8754903078079224,-91.19760131835938 -0.7949774265289307)),2016-06-05,596,D,2025-02-25,2016-08-28,597,R,S1,MintPy,1717.128973878037,isce,LOS_TIMESERIES,128,POLYGON((-90.79583946164999 -0.687890034792316,-90.86911230465793 -1.0359825079903804,-91.62407871076888 -0.8729106902243329,-91.55064943686261 -0.5251520401739668,-90.79583946164999 -0.687890034792316)),0.05546576}'
+    # FA 4/2025: parameters to be added manually: flight_direction, mission,relative_orbit,look_direction
+    if is_sarvey_format:
+        keys = 'CENTER_LINE_UTC,atmos_correct_method,beam_mode,beam_swath,post_processing_method,prf,processing_software,scene_footprint,wavelength'
+        raw_values = '{42609.0,None,IW,1,MintPy,1717.128973878037,isce,POLYGON((-90.79583946164999 -0.687890034792316,-90.86911230465793 -1.0359825079903804,-91.62407871076888 -0.8729106902243329,-91.55064943686261 -0.5251520401739668,-90.79583946164999 -0.687890034792316)),0.05546576}'
+    else:
+        keys = 'CENTER_LINE_UTC,REF_LAT,REF_LON,atmos_correct_method,beam_mode,beam_swath,data_footprint,first_date,first_frame,flight_direction,history,last_date,last_frame,look_direction,mission,post_processing_method,prf,processing_software,processing_type,relative_orbit,scene_footprint,wavelength'
+        raw_values = '{42609.0,-0.83355445,-91.12596,None,IW,1,POLYGON((-91.19760131835938 -0.7949774265289307,-91.11847686767578 -0.7949774265289307,-91.11847686767578 -0.8754903078079224,-91.19760131835938 -0.8754903078079224,-91.19760131835938 -0.7949774265289307)),2016-06-05,596,D,2025-02-25,2016-08-28,597,R,S1,MintPy,1717.128973878037,isce,LOS_TIMESERIES,128,POLYGON((-90.79583946164999 -0.687890034792316,-90.86911230465793 -1.0359825079903804,-91.62407871076888 -0.8729106902243329,-91.55064943686261 -0.5251520401739668,-90.79583946164999 -0.687890034792316)),0.05546576}'
+ 
     value_list = raw_values.strip('{}').split(',')
     key_list = keys.split(',')
     combined_values = []
@@ -349,18 +355,6 @@ def add_dummy_attribute(attributes):
     # Add to attributes dictionary
     for key, val in zip(key_list, combined_values):
         attributes[key] = val if val != 'None' else None
-    
-    # for csv
-    if all(key in attributes for key in ["LAT_ARRAY", "LON_ARRAY", "DATE_COLUMNS"]):
-        lats = attributes.pop("LAT_ARRAY")
-        lons = attributes.pop("LON_ARRAY")
-        date_columns = attributes.pop("DATE_COLUMNS")
-
-        attributes["REF_LAT"] = float(np.nanmean(lats))
-        attributes["REF_LON"] = float(np.nanmean(lons))
-        sorted_dates = sorted(date_columns)
-        attributes["first_date"] = sorted_dates[0]
-        attributes["last_date"] = sorted_dates[-1]
 
     return attributes
 
@@ -445,6 +439,23 @@ def read_from_hdfeos5_file(file_name):
 
     return attributes, decimal_dates, timeseries_datasets, dates, folder_name, lats, lons, shm
 
+def calculate_attributes(attributes):
+    # calculate attribute values from lat/lon and date columns (csv)
+
+    if all(key in attributes for key in ["LAT_ARRAY", "LON_ARRAY", "DATE_COLUMNS"]):
+        lats = attributes.pop("LAT_ARRAY")
+        lons = attributes.pop("LON_ARRAY")
+        date_columns = attributes.pop("DATE_COLUMNS")
+
+        attributes["REF_LAT"] = float(np.nanmean(lats))
+        attributes["REF_LON"] = float(np.nanmean(lons))
+
+        sorted_dates = sorted(date_columns)
+        attributes["first_date"] = sorted_dates[0]
+        attributes["last_date"] = sorted_dates[-1]
+
+    return attributes
+
 def read_from_csv_file(file_name):
     # read data from csv file to be done by Emirhan
     # the shared memory shm is confusing. it may also works without but be careful about returning or not returning shm.
@@ -504,7 +515,15 @@ def read_from_csv_file(file_name):
     attributes["LON_ARRAY"] = lons
     attributes["DATE_COLUMNS"] = dates
 
-    attributes = add_dummy_attribute(attributes)
+    # FA 4/2025: parameters to be added manually in csv creation code: flight_direction, mission,relative_orbit,look_direction
+    attributes["processing_type"] = "LOS_TIMESERIES"
+    attributes["flight_direction"] = "D"
+    attributes["mission"] = "S1"
+    attributes["relative_orbit"] = 128
+    attributes["look_direction"] = "R"
+
+    attributes = calculate_attributes(attributes)
+    attributes = add_dummy_attribute(attributes, is_sarvey_format)
     attributes = add_data_footprint_attribute(attributes, lats, lons)
 
     # per-point attributes (including elevation, velocity, coherence, etc.)
@@ -517,6 +536,11 @@ def read_from_csv_file(file_name):
     padded_lons = np.full(num_cols * num_rows, np.nan)
     padded_lons[:num_points] = lons
     lons_grid = padded_lons.reshape((num_rows, num_cols))
+
+    attributes["X_STEP"] = float(np.abs(lons_grid[0, 1] - lons_grid[0, 0]))
+    attributes["Y_STEP"] = float(np.abs(lats_grid[1, 0] - lats_grid[0, 0]))
+    attributes["X_FIRST"] = float(lons_grid[0, 0])
+    attributes["Y_FIRST"] = float(lats_grid[0, 0])
 
     folder_name = os.path.basename(file_name).split(".")[0]
 
