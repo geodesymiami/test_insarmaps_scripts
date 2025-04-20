@@ -323,40 +323,74 @@ def add_dummy_attribute(attributes, is_sarvey_format):
     # add needed attributes to attributes dictionary
     # Note: Some of these will be overwritten below if csv metadata is available
     # FA 4/2025: parameters to be added manually: flight_direction, mission,relative_orbit,look_direction
+
     if is_sarvey_format:
-        keys = 'CENTER_LINE_UTC,atmos_correct_method,beam_mode,beam_swath,post_processing_method,prf,processing_software,scene_footprint,wavelength'
-        raw_values = '{42609.0,None,IW,1,MintPy,1717.128973878037,isce,POLYGON((-90.79583946164999 -0.687890034792316,-90.86911230465793 -1.0359825079903804,-91.62407871076888 -0.8729106902243329,-91.55064943686261 -0.5251520401739668,-90.79583946164999 -0.687890034792316)),0.05546576}'
+        # # FA Apr 20: missing attributes: 'first_frame',  'history',  'last_frame'
+        # keys = 'CENTER_LINE_UTC,atmos_correct_method,beam_mode,beam_swath,post_processing_method,prf,processing_software,scene_footprint,wavelength,first_frame,last_frame'
+        # raw_values = '{42609.0,None,IW,1,MintPy,1717.128973878037,isce,POLYGON((-90.79583946164999 -0.687890034792316,-90.86911230465793 -1.0359825079903804,-91.62407871076888 -0.8729106902243329,-91.55064943686261 -0.5251520401739668,-90.79583946164999 -0.687890034792316)),0.05546576,556,557}'
+        # # keys = 'CENTER_LINE_UTC,atmos_correct_method,beam_mode,beam_swath,post_processing_method,prf,processing_software,scene_footprint,wavelength'
+        # # raw_values = '{42609.0,None,IW,1,MintPy,1717.128973878037,isce,POLYGON((-90.79583946164999 -0.687890034792316,-90.86911230465793 -1.0359825079903804,-91.62407871076888 -0.8729106902243329,-91.55064943686261 -0.5251520401739668,-90.79583946164999 -0.687890034792316)),0.05546576}'
+        # attributes['CENTER_LINE_UTC'] = 42609.0
+        attributes['atmos_correct_method'] = None
+        attributes['beam_mode'] = 'IW'
+        attributes['beam_swath'] = 1
+        attributes['post_processing_method'] = 'MintPy'
+        attributes['prf'] = 1717.128973878037
+        attributes['processing_software'] = 'isce'
+        attributes['scene_footprint'] = 'POLYGON((-90.79583946164999 -0.687890034792316,-90.86911230465793 -1.0359825079903804,-91.62407871076888 -0.8729106902243329,-91.55064943686261 -0.5251520401739668,-90.79583946164999 -0.687890034792316))'
+        attributes['wavelength'] = 0.05546576
+        attributes['first_frame'] = 556
+        attributes['last_frame'] = 557
     else:
-        keys = 'CENTER_LINE_UTC,REF_LAT,REF_LON,atmos_correct_method,beam_mode,beam_swath,data_footprint,first_date,first_frame,flight_direction,history,last_date,last_frame,look_direction,mission,post_processing_method,prf,processing_software,processing_type,relative_orbit,scene_footprint,wavelength'
-        raw_values = '{42609.0,-0.83355445,-91.12596,None,IW,1,POLYGON((-91.19760131835938 -0.7949774265289307,-91.11847686767578 -0.7949774265289307,-91.11847686767578 -0.8754903078079224,-91.19760131835938 -0.8754903078079224,-91.19760131835938 -0.7949774265289307)),2016-06-05,596,D,2025-02-25,2016-08-28,597,R,S1,MintPy,1717.128973878037,isce,LOS_TIMESERIES,128,POLYGON((-90.79583946164999 -0.687890034792316,-90.86911230465793 -1.0359825079903804,-91.62407871076888 -0.8729106902243329,-91.55064943686261 -0.5251520401739668,-90.79583946164999 -0.687890034792316)),0.05546576}'
- 
-    value_list = raw_values.strip('{}').split(',')
-    key_list = keys.split(',')
-    combined_values = []
-    i = 0
-    while i < len(value_list):
-        val = value_list[i]
-        if val.startswith('POLYGON(('):
-            polygon = val
-            i += 1
-            while not value_list[i].endswith('))'):
-                polygon += ',' + value_list[i]
-                i += 1
-            polygon += ',' + value_list[i]  # add the last one
-            combined_values.append(polygon)
-        else:
-            combined_values.append(val)
-        i += 1
+        attributes['CENTER_LINE_UTC'] = 42609.0
+        attributes['atmos_correct_method'] = None
+        attributes['beam_mode'] = 'IW'
+        attributes['beam_swath'] = 1
+        attributes['post_processing_method'] = 'MintPy'
+        attributes['prf'] = 1717.128973878037
+        attributes['processing_software'] = 'isce'
+        attributes['scene_footprint'] = 'POLYGON((-90.79583946164999 -0.687890034792316,-90.86911230465793 -1.0359825079903804,-91.62407871076888 -0.8729106902243329,-91.55064943686261 -0.5251520401739668,-90.79583946164999 -0.687890034792316))'
+        attributes['wavelength'] = 0.05546576
+        attributes['first_frame'] = 596
+        attributes['last_frame'] = 597
+        # --- Remaining keys ---
+        attributes['REF_LAT'] = -0.83355445
+        attributes['REF_LON'] = -91.12596
+        attributes['data_footprint'] = 'POLYGON((-91.19760131835938 -0.7949774265289307,-91.11847686767578 -0.7949774265289307,-91.11847686767578 -0.8754903078079224,-91.19760131835938 -0.8754903078079224,-91.19760131835938 -0.7949774265289307))'
+        attributes['first_date'] = '2016-06-05'
+        attributes['flight_direction'] = 'D'
+        attributes['history'] = '2025-02-25'
+        attributes['last_date'] = '2016-08-28'
+        attributes['look_direction'] = 'R'
+        attributes['mission'] = 'S1'
+        attributes['processing_type'] = 'LOS_TIMESERIES'
+        attributes['relative_orbit'] = 128
 
-    # Sanity check
-    if len(combined_values) != len(key_list):
-        raise ValueError(f"Mismatch between keys ({len(key_list)}) and values ({len(combined_values)})")
+    # value_list = raw_values.strip('{}').split(',')
+    # key_list = keys.split(',')
+    # combined_values = []
+    # i = 0
+    # while i < len(value_list):
+    #     val = value_list[i]
+    #     if val.startswith('POLYGON(('):
+    #         polygon = val
+    #         i += 1
+    #         while not value_list[i].endswith('))'):
+    #             polygon += ',' + value_list[i]
+    #             i += 1
+    #         polygon += ',' + value_list[i]  # add the last one
+    #         combined_values.append(polygon)
+    #     else:
+    #         combined_values.append(val)
+    #     i += 1
 
-    # Add to attributes dictionary
-    for key, val in zip(key_list, combined_values):
-        attributes[key] = val if val != 'None' else None
+    # # Sanity check
+    # if len(combined_values) != len(key_list):
+    #     raise ValueError(f"Mismatch between keys ({len(key_list)}) and values ({len(combined_values)})")
 
-    return attributes
+    # # Add to attributes dictionary
+    # for key, val in zip(key_list, combined_values):
+    #     attributes[key] = val if val != 'None' else None
 
 def add_data_footprint_attribute(attributes, lats, lons):
     """
@@ -384,9 +418,6 @@ def add_data_footprint_attribute(attributes, lats, lons):
    
     attributes['data_footprint'] = polygon
     attributes["scene_footprint"] = polygon
-
-    return attributes
-
 
 def read_from_hdfeos5_file(file_name):
     # read data from hdfeos5 file
@@ -439,7 +470,7 @@ def read_from_hdfeos5_file(file_name):
 
     return attributes, decimal_dates, timeseries_datasets, dates, folder_name, lats, lons, shm
 
-def calculate_attributes(attributes):
+def add_calculate_attributes(attributes):
     # calculate attribute values from lat/lon and date columns (csv)
 
     if all(key in attributes for key in ["LAT_ARRAY", "LON_ARRAY", "DATE_COLUMNS"]):
@@ -453,9 +484,8 @@ def calculate_attributes(attributes):
         sorted_dates = sorted(date_columns)
         attributes["first_date"] = sorted_dates[0]
         attributes["last_date"] = sorted_dates[-1]
-
-    return attributes
-
+        attributes["history"] = datetime.now().strftime("%Y-%m-%d")
+            
 def read_from_csv_file(file_name):
     # read data from csv file to be done by Emirhan
     # the shared memory shm is confusing. it may also works without but be careful about returning or not returning shm.
@@ -522,10 +552,9 @@ def read_from_csv_file(file_name):
     attributes["relative_orbit"] = 128
     attributes["look_direction"] = "R"
 
-    attributes = calculate_attributes(attributes)
-    attributes = add_dummy_attribute(attributes, is_sarvey_format)
-    attributes = add_data_footprint_attribute(attributes, lats, lons)
-
+    add_calculate_attributes(attributes)
+    add_dummy_attribute(attributes, is_sarvey_format)
+    add_data_footprint_attribute(attributes, lats, lons)
     # per-point attributes (including elevation, velocity, coherence, etc.)
     point_attributes = df.drop(columns=time_cols + lat_candidates + lon_candidates, errors="ignore").to_dict("records")
 
@@ -537,10 +566,10 @@ def read_from_csv_file(file_name):
     padded_lons[:num_points] = lons
     lons_grid = padded_lons.reshape((num_rows, num_cols))
 
-    attributes["X_STEP"] = float(np.abs(lons_grid[0, 1] - lons_grid[0, 0]))
-    attributes["Y_STEP"] = float(np.abs(lats_grid[1, 0] - lats_grid[0, 0]))
-    attributes["X_FIRST"] = float(lons_grid[0, 0])
-    attributes["Y_FIRST"] = float(lats_grid[0, 0])
+    # attributes["X_STEP"] = float(np.abs(lons_grid[0, 1] - lons_grid[0, 0]))
+    # attributes["Y_STEP"] = float(np.abs(lats_grid[1, 0] - lats_grid[0, 0]))
+    # attributes["X_FIRST"] = float(lons_grid[0, 0])
+    # attributes["Y_FIRST"] = float(lats_grid[0, 0])
 
     folder_name = os.path.basename(file_name).split(".")[0]
 
