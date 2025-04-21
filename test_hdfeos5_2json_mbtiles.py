@@ -85,7 +85,7 @@ def get_attribute_or_remove_from_needed(needed_attributes, attributes, attribute
 
     return val
 
-def generate_worker_args(decimal_dates, timeseries_datasets, dates, json_path, folder_name, chunk_size, lats, lons, num_columns, num_rows, point_attributes=None):
+def generate_worker_args(decimal_dates, timeseries_datasets, dates, json_path, folder_name, chunk_size, lats, lons, num_columns, num_rows, quality_params=None):
     num_points = num_columns * num_rows
 
     worker_args = []
@@ -97,19 +97,19 @@ def generate_worker_args(decimal_dates, timeseries_datasets, dates, json_path, f
         end = (idx + 1) * chunk_size
         if end > num_points:
             end = num_points
-        args = [decimal_dates, timeseries_datasets, dates, json_path, folder_name, (start, end - 1), num_columns, num_rows, lats, lons, point_attributes]
+        args = [decimal_dates, timeseries_datasets, dates, json_path, folder_name, (start, end - 1), num_columns, num_rows, lats, lons, quality_params]
         worker_args.append(tuple(args))
         idx += 1
 
     if num_points % chunk_size != 0:
         start = end
         end = num_points
-        args = [decimal_dates, timeseries_datasets, dates, json_path, folder_name, (start, end - 1), num_columns, num_rows, lats, lons, point_attributes]
+        args = [decimal_dates, timeseries_datasets, dates, json_path, folder_name, (start, end - 1), num_columns, num_rows, lats, lons, quality_params]
         worker_args.append(tuple(args))
 
     return worker_args
 
-def create_json(decimal_dates, timeseries_datasets, dates, json_path, folder_name, work_idxs, num_columns, num_rows, lats=None, lons=None, point_attributes=None):
+def create_json(decimal_dates, timeseries_datasets, dates, json_path, folder_name, work_idxs, num_columns, num_rows, lats=None, lons=None, quality_params=None):
     global chunk_num
     # create a siu_man array to store json point objects
     siu_man = []
@@ -147,23 +147,16 @@ def create_json(decimal_dates, timeseries_datasets, dates, json_path, folder_nam
             m, c = np.linalg.lstsq(A, y, rcond=None)[0]
 
             # Base properties for all inputs
-            properties = {
-                "d": displacement_values,
-                "m": m,
-                "p": point_num
-            }
-
-            # add additional attr only if point_attributes is provided (csv)
-            if point_attributes and point_num < len(point_attributes):
-                for k, v in point_attributes[point_num].items():
-                    if v is not None:
-                        properties[k] = v
-
             data = {
                 "type": "Feature",
                 "geometry": {"type": "Point", "coordinates": [longitude, latitude]},
-                "properties": properties
+                "properties": {"d": displacement_values, "m": m, "p": point_num}
             }
+
+            # Add quality parameters at this location
+            if quality_params:   
+                for key in quality_params.keys():
+                    data["properties"][key] = quality_params[key][row][col]
 
             siu_man.append(data)
 
@@ -177,13 +170,14 @@ def create_json(decimal_dates, timeseries_datasets, dates, json_path, folder_nam
         with chunk_num.get_lock():
             chunk_num_val = chunk_num.value
             chunk_num.value += 1
-
+  
         make_json_file(chunk_num_val, siu_man, dates, json_path, folder_name)
+
         siu_man = []
 
 # ---------------------------------------------------------------------------------------
 # convert h5 file to json and upload it. folder_name == unavco_name
-def convert_data(attributes, decimal_dates, timeseries_datasets, dates, json_path, folder_name, lats=None, lons=None, num_workers=1, point_attributes=None):
+def convert_data(attributes, decimal_dates, timeseries_datasets, dates, json_path, folder_name, lats=None, lons=None, quality_params=None, num_workers=1):
 
     project_name = attributes["PROJECT_NAME"]
     region = region_name_from_project_name(project_name)
@@ -209,7 +203,7 @@ def convert_data(attributes, decimal_dates, timeseries_datasets, dates, json_pat
 
     CHUNK_SIZE = 20000
     process_pool = Pool(num_workers)
-    process_pool.starmap(create_json, generate_worker_args(decimal_dates, timeseries_datasets, dates, json_path, folder_name, CHUNK_SIZE, lats, lons, num_columns, num_rows, point_attributes))
+    process_pool.starmap(create_json, generate_worker_args(decimal_dates, timeseries_datasets, dates, json_path, folder_name, CHUNK_SIZE, lats, lons, num_columns, num_rows, quality_params))
     process_pool.close()
 
     # dictionary to contain metadata needed by db to be written to a file
@@ -289,6 +283,7 @@ def convert_data(attributes, decimal_dates, timeseries_datasets, dates, json_pat
 # create a json file out of siu man array
 # then put json file into directory named after the h5 file
 def make_json_file(chunk_num, points, dates, json_path, folder_name):
+
     chunk = "chunk_" + str(chunk_num) + ".json"
     json_file = open(json_path + "/" + chunk, "w")
     json_features = [json.dumps(feature) for feature in points]
@@ -311,6 +306,12 @@ def high_res_mode(attributes):
 
 # ---------------------------------------------------------------------------------------
 def build_parser():
+    example_text = """\
+Examples:
+  hdfeos5_or_csv_2json_mbtiles.py mintpy/S1_IW1_128_0596_0597_20160605_XXXXXXXX_S00887_S00783_W091208_W091105.he5 mintpy/JSON --num-workers 3
+  hdfeos5_or_csv_2json_mbtiles.py sarvey_test.csv ./JSON
+  hdfeos5_or_csv_2json_mbtiles.py NOAA_SNT_A_VERT_10_50m.csv ./JSON_NOAA
+  """
     parser = argparse.ArgumentParser(description='Convert a Unavco format H5 file for ingestion into insarmaps.', epilog="This program will create temporary json chunk files which, when concatenated together, comprise the whole dataset. Tippecanoe is used for concatenating these chunk files into the mbtiles file which describes the whole dataset.")
     parser.add_argument("--num-workers", help="Number of simultaneous processes to run for ingest.", required=False, default=1, type=int)
     required = parser.add_argument_group("required arguments")
@@ -502,18 +503,38 @@ def read_from_csv_file(file_name):
 
     add_calculated_attributes(attributes)   # FA 4/2025: need to make work for NOAA-TRE
     add_data_footprint_attribute(attributes, lats, lons)
-
     add_dummy_attribute(attributes, is_sarvey_format)  # Remove once needed_attributes have been reduced. FA 4/2025: this shoulkd not depend on sarvey or NOAA
-    # per-point attributes (including elevation, velocity, coherence, etc.)
-    point_attributes = df.drop(columns=time_cols + lat_candidates + lon_candidates, errors="ignore").to_dict("records")
-
+    
     padded_lats = np.full(num_cols * num_rows, np.nan)
-    padded_lats[:num_points] = lats
+    padded_lats [:num_points] = lats
     lats_grid = padded_lats.reshape((num_rows, num_cols))
 
     padded_lons = np.full(num_cols * num_rows, np.nan)
     padded_lons[:num_points] = lons
     lons_grid = padded_lons.reshape((num_rows, num_cols))
+
+    # point quality parameters
+    dem_error = df['dem_error'].values
+    coherence = df['coherence'].values
+    omega = df['omega'].values
+    st_consist = df['st_consist'].values
+
+    quality_fields = {
+        'dem_error': df['dem_error'].values,
+        'coherence': df['coherence'].values,
+        'omega': df['omega'].values,
+        'st_consist': df['st_consist'].values,
+    }
+    quality_params = {
+        key: np.full(num_rows * num_cols, np.nan) for key in quality_fields
+    }
+    quality_grids = {
+        key: np.full(num_rows * num_cols, np.nan) for key in quality_fields
+    }
+
+    for key, values in quality_fields.items():
+        quality_grids[key][:num_points] = values
+        quality_grids[key] = quality_grids[key].reshape((num_rows, num_cols))
 
     # attributes["X_STEP"] = float(np.abs(lons_grid[0, 1] - lons_grid[0, 0]))
     # attributes["Y_STEP"] = float(np.abs(lats_grid[1, 0] - lats_grid[0, 0]))
@@ -533,7 +554,7 @@ def read_from_csv_file(file_name):
     print(" - Number of dates:", len(dates))
     print(" - Attributes:", attributes)
 
-    return point_attributes, attributes, decimal_dates, timeseries_datasets, dates, folder_name, lats_grid, lons_grid, shm
+    return attributes, decimal_dates, timeseries_datasets, dates, folder_name, lats_grid, lons_grid, shm, quality_grids
 # ---------------------------------------------------------------------------------------
 # START OF EXECUTABLE
 # ---------------------------------------------------------------------------------------
@@ -549,20 +570,28 @@ def main():
         print(output_folder + " already exists")
 
     file_path = Path(file_name)
-    point_attributes = None  # default for HDFEOS5 input
 
     # start clock to track how long conversion process takes
     start_time = time.perf_counter()
     
     if file_path.suffix.lower() == ".he5":
         attributes, decimal_dates, timeseries_datasets, dates, folder_name, lats, lons, shm = read_from_hdfeos5_file(file_name)
+        quality_params = None
+        # FA 4/2025: Initialize missing quality_params as zero arrays did not work. Problem in: [json.dumps(feature) for feature in points]
+        # shape = lats.shape
+        # quality_params = {
+        #     'dem_error': np.zeros(shape, dtype=np.float32),
+        #     'coherence': np.zeros(shape, dtype=np.float32),
+        #     'omega': np.zeros(shape, dtype=np.float32),
+        #     'st_consist': np.zeros(shape, dtype=np.float32)
+        # }
     elif file_path.suffix.lower() == ".csv":
-        point_attributes, attributes, decimal_dates, timeseries_datasets, dates, folder_name, lats, lons, shm = read_from_csv_file(file_name)
+        attributes, decimal_dates, timeseries_datasets, dates, folder_name, lats, lons, shm, quality_params = read_from_csv_file(file_name)
     else:
         raise FileNotFoundError(f"The file '{file_path}' does not exist or has not .he5 or .csv as extension.")   
 
     # read and convert the datasets, then write them into json files and insert into database
-    convert_data(attributes, decimal_dates, timeseries_datasets, dates, output_folder, folder_name, lats, lons, parseArgs.num_workers, point_attributes)
+    convert_data(attributes, decimal_dates, timeseries_datasets, dates, output_folder, folder_name, lats, lons, quality_params, parseArgs.num_workers)
     del lats
     del lons
     if shm is not None:
