@@ -414,12 +414,12 @@ def read_from_hdfeos5_file(file_name):
     path_list = path_name.split("/")
     folder_name = path_name.split("/")[len(path_list)-1]
 
-    # read lat and long. MintPy doesn't seem to support this yet, so we use the raw
-    # h5 file object
+    # read lat and long. MintPy doesn't seem to support this yet, so we use the raw h5 file object
     f = h5py.File(he_obj.file, "r")
     lats = np.array(f["HDFEOS"]["GRIDS"]["timeseries"]["geometry"]["latitude"])
     lons = np.array(f["HDFEOS"]["GRIDS"]["timeseries"]["geometry"]["longitude"])
 
+    attributes["collection"] = "hdfeos5"
     return attributes, decimal_dates, timeseries_datasets, dates, folder_name, lats, lons, shm
 
 def add_calculated_attributes(attributes):
@@ -497,6 +497,7 @@ def read_from_csv_file(file_name):
     attributes["DATE_COLUMNS"] = dates
     attributes["processing_type"] = "LOS_TIMESERIES"
     attributes["look_direction"] = "R"
+    attributes["collection"] = "sarvey"
 
     # FA 4/2025: attribute to be included in *.csv file as sarvey2csv.py --mission S1 --flight-direction D --relative-orbit 128
     attributes["mission"] = "S1"
